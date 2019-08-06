@@ -1,17 +1,47 @@
-# Welcome to MkDocs
+# Ray Serve
 
-For full documentation visit [mkdocs.org](https://mkdocs.org).
+- First class deadline
+- Seamless version upgrade and rollback.
+- Flexible traffic policy.
+- Call from http and python
 
-## Commands
+```python
+import serve as srv
+import requests
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs help` - Print this help message.
+def echo(context):
+    return context
 
-## Project layout
 
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+srv.init(blocking=True)
+
+srv.create_endpoint("my_endpoint", "/echo")
+srv.create_backend(echo, "echo:v1")
+srv.link("my_endpoint", "echo:v1")
+
+while True:
+    resp = requests.get("http://127.0.0.1:8000/echo").json()
+    print(resp)
+```
+
+
+```
+# starting server process
+INFO: Started server process [87477]
+INFO: Waiting for application startup.
+INFO: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+
+# routing table is populated in the background
+Updated Routing Table:  {}
+INFO: ('127.0.0.1', 61851) - "GET /echo HTTP/1.1" 200
+{'error': 'path not found'}
+...
+
+# second try works!
+Updated Routing Table:  {'/echo': 'my_endpoint'}
+INFO: ('127.0.0.1', 61853) - "GET /echo HTTP/1.1" 200
+
+{'result': {'type': 'http', 'http_version': '1.1', 'server': ['127.0.0.1', 8000], 'client': ['127.0.0.1', 61853], 'scheme': 'http', 'method': 'GET', 'root_path': '', 'path': '/echo', 'raw_path': '/echo', 'query_string': '', 'headers': [['host', '127.0.0.1:8000'], ['user-agent', 'python-requests/2.12.4'], ['accept-encoding', 'gzip, deflate'], ['accept', '*/*'], ['connection', 'keep-alive']]}}
+...
+```
+
