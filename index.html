@@ -75,7 +75,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#welcome-to-mkdocs" tabindex="1" class="md-skip">
+      <a href="#ray-serve" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -101,7 +101,7 @@
             </span>
             <span class="md-header-nav__topic">
               
-                Welcome to MkDocs
+                Ray Serve
               
             </span>
           
@@ -178,45 +178,9 @@
       
     
     
-      <label class="md-nav__link md-nav__link--active" for="__toc">
-        Welcome to MkDocs
-      </label>
-    
-    <a href="." title="Welcome to MkDocs" class="md-nav__link md-nav__link--active">
-      Welcome to MkDocs
+    <a href="." title="Ray Serve" class="md-nav__link md-nav__link--active">
+      Ray Serve
     </a>
-    
-      
-<nav class="md-nav md-nav--secondary">
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#commands" title="Commands" class="md-nav__link">
-    Commands
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#project-layout" title="Project layout" class="md-nav__link">
-    Project layout
-  </a>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
     
   </li>
 
@@ -238,29 +202,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#commands" title="Commands" class="md-nav__link">
-    Commands
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#project-layout" title="Project layout" class="md-nav__link">
-    Project layout
-  </a>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -272,21 +213,50 @@
               
                 
                 
-                <h1 id="welcome-to-mkdocs">Welcome to MkDocs</h1>
-<p>For full documentation visit <a href="https://mkdocs.org">mkdocs.org</a>.</p>
-<h2 id="commands">Commands</h2>
+                <h1 id="ray-serve">Ray Serve</h1>
 <ul>
-<li><code>mkdocs new [dir-name]</code> - Create a new project.</li>
-<li><code>mkdocs serve</code> - Start the live-reloading docs server.</li>
-<li><code>mkdocs build</code> - Build the documentation site.</li>
-<li><code>mkdocs help</code> - Print this help message.</li>
+<li>First class deadline</li>
+<li>Seamless version upgrade and rollback.</li>
+<li>Flexible traffic policy.</li>
+<li>Call from http and python</li>
 </ul>
-<h2 id="project-layout">Project layout</h2>
-<pre><code>mkdocs.yml    # The configuration file.
-docs/
-    index.md  # The documentation homepage.
-    ...       # Other markdown pages, images and other files.
-</code></pre>
+<div class="codehilite"><pre><span></span><span class="kn">import</span> <span class="nn">serve</span> <span class="kn">as</span> <span class="nn">srv</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="k">def</span> <span class="nf">echo</span><span class="p">(</span><span class="n">context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">context</span>
+
+
+<span class="n">srv</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">blocking</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<span class="n">srv</span><span class="o">.</span><span class="n">create_endpoint</span><span class="p">(</span><span class="s2">&quot;my_endpoint&quot;</span><span class="p">,</span> <span class="s2">&quot;/echo&quot;</span><span class="p">)</span>
+<span class="n">srv</span><span class="o">.</span><span class="n">create_backend</span><span class="p">(</span><span class="n">echo</span><span class="p">,</span> <span class="s2">&quot;echo:v1&quot;</span><span class="p">)</span>
+<span class="n">srv</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="s2">&quot;my_endpoint&quot;</span><span class="p">,</span> <span class="s2">&quot;echo:v1&quot;</span><span class="p">)</span>
+
+<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+    <span class="n">resp</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;http://127.0.0.1:8000/echo&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">resp</span><span class="p">)</span>
+</pre></div>
+
+
+<div class="codehilite"><pre><span></span># starting server process
+INFO: Started server process [87477]
+INFO: Waiting for application startup.
+INFO: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+
+# routing table is populated in the background
+Updated Routing Table:  {}
+INFO: (&#39;127.0.0.1&#39;, 61851) - &quot;GET /echo HTTP/1.1&quot; 200
+{&#39;error&#39;: &#39;path not found&#39;}
+...
+
+# second try works!
+Updated Routing Table:  {&#39;/echo&#39;: &#39;my_endpoint&#39;}
+INFO: (&#39;127.0.0.1&#39;, 61853) - &quot;GET /echo HTTP/1.1&quot; 200
+
+{&#39;result&#39;: {&#39;type&#39;: &#39;http&#39;, &#39;http_version&#39;: &#39;1.1&#39;, &#39;server&#39;: [&#39;127.0.0.1&#39;, 8000], &#39;client&#39;: [&#39;127.0.0.1&#39;, 61853], &#39;scheme&#39;: &#39;http&#39;, &#39;method&#39;: &#39;GET&#39;, &#39;root_path&#39;: &#39;&#39;, &#39;path&#39;: &#39;/echo&#39;, &#39;raw_path&#39;: &#39;/echo&#39;, &#39;query_string&#39;: &#39;&#39;, &#39;headers&#39;: [[&#39;host&#39;, &#39;127.0.0.1:8000&#39;], [&#39;user-agent&#39;, &#39;python-requests/2.12.4&#39;], [&#39;accept-encoding&#39;, &#39;gzip, deflate&#39;], [&#39;accept&#39;, &#39;*/*&#39;], [&#39;connection&#39;, &#39;keep-alive&#39;]]}}
+...
+</pre></div>
                 
                   
                 
