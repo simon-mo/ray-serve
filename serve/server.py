@@ -3,13 +3,14 @@ import json
 import os
 import sys
 import time
+import logging
 
 import uvicorn
 
 import ray
 from ray.experimental.async_api import _async_init, as_future, init
 from ray.experimental.named_actors import get_actor, register_actor
-from serve.utils import BytesEncoder
+from serve.utils import BytesEncoder, logger
 
 
 class Response:
@@ -48,9 +49,9 @@ class HTTPProxy:
         while True:
             try:
                 self.svcs = await as_future(self.admin_actor.list_service.remote())
-            except ray.exceptions.RayletError:
+            except ray.exceptions.RayletError:  # Handle termination
                 return
-            print("Updated Routing Table: ", self.svcs)
+            logger.debug("Updated Routing Table: %s", self.svcs)
             await asyncio.sleep(interval)
 
     async def __call__(self, scope, receive, send):
@@ -73,20 +74,3 @@ class HTTPProxy:
 
 
 app = HTTPProxy()
-
-if __name__ == "__main__":
-    ray.init("127.0.0.1:20000")
-
-    from serve.api_svc import RouteServer
-
-    # api = APIServer.remote()
-    api = get_actor("api")
-    ray.get(api.register_service.remote("/a", "b"))
-
-    print(ray.get(api.list_service.remote()))
-
-    counter = 1
-    while True:
-        time.sleep(2)
-        ray.get(api.register_service.remote(f"/a{counter}", "b"))
-        counter += 1

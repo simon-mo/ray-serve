@@ -1,8 +1,11 @@
 # Ray Serve
 
-- First class deadline
+`Ray Serve` is a library that helps you deploy your functions and actors to the outside world.
+
+It offers:
 - Seamless version upgrade and rollback.
 - Flexible traffic policy.
+- First class deadline
 - Call from http and python
 
 ```python
@@ -11,7 +14,6 @@ import requests
 
 def echo(context):
     return context
-
 
 srv.init(blocking=True)
 
@@ -23,7 +25,6 @@ while True:
     resp = requests.get("http://127.0.0.1:8000/echo").json()
     print(resp)
 ```
-
 
 ```
 # starting server process

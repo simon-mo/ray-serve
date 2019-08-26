@@ -1,4 +1,5 @@
 import time
+from pprint import pprint
 
 import requests
 
@@ -11,13 +12,13 @@ def echo(context):
 
 srv.init(blocking=True)
 
-srv.create_endpoint("my_endpoint", "/echo")
+srv.create_endpoint("my_endpoint", "/echo", blocking=True)
 srv.create_backend(echo, "echo:v1")
 srv.link("my_endpoint", "echo:v1")
 
 while True:
     resp = requests.get("http://127.0.0.1:8000/echo").json()
-    print(resp)
+    pprint(resp)
 
-    print("...")
+    print("...Sleeping for 2 seconds...")
     time.sleep(2)

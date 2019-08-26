@@ -5,10 +5,12 @@ import time
 from subprocess import STDOUT, Popen, call
 
 import ray
+
 from ray.experimental import register_actor
 from serve.api_svc import RouteServerActor
 from serve.queues import CentralizedQueuesActor
 from serve.task_runner import TaskRunnerActor
+from serve.utils import logger
 
 API_SERVICE_NAME = "API"
 ROUTER_NAME = "router"
@@ -22,10 +24,16 @@ class GlobalState:
         self.server_proc = None
 
     def init_api_server(self):
+        logger.info("[Global State] Initalizing Routing Table")
         self.api_handle = RouteServerActor.remote()
+        logger.info(
+            "[Global State] Health Checking Routing Table %s",
+            ray.get(self.api_handle.get_request_count.remote()),
+        )
         register_actor(API_SERVICE_NAME, self.api_handle)
 
     def init_http_server(self, redis_addr):
+        logger.info("[Global State] Initializing HTTP Server")
         script = "uvicorn server:app"
         new_env = os.environ.copy()
         new_env.update(
@@ -46,6 +54,7 @@ class GlobalState:
 
     def init_router(self):
         # TODO: sharded later
+        logger.info("[Global State] Initializing Queuing System")
         self.router = CentralizedQueuesActor.remote()
         register_actor(ROUTER_NAME, self.router)
 
@@ -64,6 +73,7 @@ class GlobalState:
 
         while not req_cnt:
             req_cnt = ray.get(self.api_handle.get_request_count.remote())
+            logger.info("[Global State] Making sure HTTP Server is ready.")
             time.sleep(1)
             retries -= 1
             if retries == 0:

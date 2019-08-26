@@ -6,15 +6,7 @@ from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 
 import ray
-
-
-def _get_new_oid():
-    worker = ray.worker.global_worker
-    object_id = ray._raylet.compute_put_id(
-        worker.current_task_id, worker.task_context.put_index
-    )
-    worker.task_context.put_index += 1
-    return object_id
+from serve.utils import logger, get_custom_object_id
 
 
 @dataclass
@@ -24,7 +16,7 @@ class Query:
 
     @staticmethod
     def new(req: Any):
-        return Query(request_body=req, result_oid=_get_new_oid())
+        return Query(request_body=req, result_oid=get_custom_object_id())
 
 
 @dataclass
@@ -33,7 +25,7 @@ class WorkIntent:
 
     @staticmethod
     def new():
-        return WorkIntent(work_oid=_get_new_oid())
+        return WorkIntent(work_oid=get_custom_object_id())
 
 
 class CentralizedQueues:
@@ -48,22 +40,25 @@ class CentralizedQueues:
         self.workers = defaultdict(deque)
 
     def produce(self, svc, req):
-        print("Producer", svc)
+        logger.debug("Producer %s", svc)
         query = Query.new(req)
         self.queues[svc].append(query)
-        self._flush()
+        self.flush()
         return query.result_oid.binary()
 
     def consume(self, backend):
-        print("Consumer", backend)
+        logger.debug("Consumer %s", backend)
         intention = WorkIntent.new()
         self.workers[backend].append(intention)
-        self._flush()  # .remote?
+        self.flush()
         return intention.work_oid.binary()
 
     def link(self, svc, backend):
-        print("Link", svc, backend)
+        logger.debug("Link %s with %s", svc, backend)
         self.traffic[svc] = backend
+        self.flush()
+
+    def flush(self):
         self._flush()
 
     def _flush(self):
@@ -76,19 +71,13 @@ class CentralizedQueues:
 
 @ray.remote
 class CentralizedQueuesActor(CentralizedQueues):
-    pass
+    self_handle = None
 
+    def register_self_handle(self, handle_to_this_actor):
+        self.self_handle = handle_to_this_actor
 
-if __name__ == "__main__":
-    ray.init(object_store_memory=int(1e8))
-
-    q = CentralizedQueues()
-    q.link("svc", "backend")
-
-    result_oid = q.produce("svc", 1)
-    work_oid = q.consume("backend")
-    got_work = ray.get(ray.ObjectID(work_oid))
-    assert got_work.request_body == 1
-
-    ray.worker.global_worker.put_object(got_work.result_oid, 2)
-    assert ray.get(ray.ObjectID(result_oid)) == 2
+    def flush(self):
+        if self.self_handle:
+            self.self_handle._flush.remote()
+        else:
+            self._flush()
