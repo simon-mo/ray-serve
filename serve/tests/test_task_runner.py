@@ -3,7 +3,7 @@ import pytest
 import ray
 from ray.experimental import register_actor
 from serve.queues import CentralizedQueuesActor
-from serve.task_runner import TaskRunner, TaskRunnerActor, wrap_to_ray_error
+from serve.task_runner import TaskRunner, TaskRunnerActor, wrap_to_ray_error, RayServeMixin
 
 
 def test_runner_basic():
@@ -41,3 +41,34 @@ def test_runner_actor(serve_instance):
     for query in [333, 444, 555]:
         result_token = ray.ObjectID(ray.get(q.produce.remote(PRODUCER_NAME, query)))
         assert ray.get(result_token) == query
+
+class MyAdder():
+    def __init__(self, inc):
+        self.increment = inc
+    def __call__(self, context):
+        return context + self.increment
+        
+def test_ray_serve_mixin(serve_instance):
+    q = CentralizedQueuesActor.remote()
+    
+    QUEUE_NAME = "q-cls"
+    CONSUMER_NAME = "runner-cls"
+    PRODUCER_NAME = "prod-cls"
+
+    @ray.remote
+    class CustomActor(MyAdder, RayServeMixin):
+        pass
+
+    runner = CustomActor.remote(3)
+
+    register_actor(QUEUE_NAME, q)
+    register_actor(CONSUMER_NAME, runner)
+
+    runner.setup.remote(my_name=CONSUMER_NAME, router_name=QUEUE_NAME)
+    runner.main_loop.remote()
+
+    q.link.remote(PRODUCER_NAME, CONSUMER_NAME)
+
+    for query in [333, 444, 555]:
+        result_token = ray.ObjectID(ray.get(q.produce.remote(PRODUCER_NAME, query)))
+        assert ray.get(result_token) == query + 3

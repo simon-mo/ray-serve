@@ -11,7 +11,6 @@ def delay_rerun(*args):
     time.sleep(1)
     return True
 
-
 # flaky test because the routing table might not be populated
 @flaky(rerun_filter=delay_rerun)
 def test_e2e(serve_instance):

@@ -3,25 +3,31 @@ import shlex
 import sys
 import time
 from subprocess import STDOUT, Popen, call
+import inspect
 
 import ray
+import numpy as np
 
 from ray.experimental import register_actor
 from serve.api_svc import RouteServerActor
 from serve.queues import CentralizedQueuesActor
-from serve.task_runner import TaskRunnerActor
+from serve.task_runner import TaskRunnerActor, RayServeMixin
 from serve.utils import logger
 
 API_SERVICE_NAME = "API"
 ROUTER_NAME = "router"
 
-
+# TODO(simon): this will be moved in namespaced kv stores
 class GlobalState:
     def __init__(self):
         self.actor_nursery = []
 
         self.api_handle = None
         self.server_proc = None
+
+        self.registered_backends = []
+
+        self.policy_action_history = deque()
 
     def init_api_server(self):
         logger.info("[Global State] Initalizing Routing Table")
@@ -100,14 +106,47 @@ def create_endpoint(endpoint_name, route_expression, blocking=True):
         ray.get(fut)
 
 
-def create_backend(func, backend_tag):
-    runner = TaskRunnerActor.remote(func)
+def create_backend(func_or_class, backend_tag, *actor_init_args):
+    if inspect.isfunction(func_or_class):
+        runner = TaskRunnerActor.remote(func)
+    elif inspect.isclass(func_or_class):
+
+        @ray.remote
+        class CustomActor(func_or_class, RayServeMixin):
+            pass
+
+        runner = CustomActor.remote(*actor_init_args)
+    else:
+        raise Exception(
+            "backend must be a function or class, it is {}".format(type(func_or_class))
+        )
+
     global_state.actor_nursery.append(runner)
 
     register_actor(backend_tag, runner)
     runner.setup.remote(my_name=backend_tag, router_name=ROUTER_NAME)
     runner.main_loop.remote()
 
+    global_state.registered_backends.append(backend_tag)
+
 
 def link(endpoint_name, backend_tag):
     global_state.router.link.remote(endpoint_name, backend_tag)
+
+
+def split(endpoint_name, traffic_policy_dictionary):
+    # Perform dictionary checks
+    assert isinstance(
+        traffic_policy_dictionary, dict
+    ), "Traffic policy must be dictionary"
+    prob = 0
+    for backend, weight in traffic_policy_dictionary.items():
+        prob += weight
+        assert (
+            backend in global_state.registered_backends
+        ), "backend {} is not registered".format(backend)
+    assert np.isclose(
+        prob, 1, atol=0.02
+    ), "weights must sum to 1, currently it sums to {}".format(prob)
+
+    global_state.router.set_traffic.remote(endpoint_name, traffic_policy_dictionary)

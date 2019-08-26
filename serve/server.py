@@ -51,7 +51,7 @@ class HTTPProxy:
                 self.svcs = await as_future(self.admin_actor.list_service.remote())
             except ray.exceptions.RayletError:  # Handle termination
                 return
-            logger.debug("Updated Routing Table: %s", self.svcs)
+            # logger.debug("Updated Routing Table: %s", self.svcs)
             await asyncio.sleep(interval)
 
     async def __call__(self, scope, receive, send):

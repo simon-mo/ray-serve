@@ -104,7 +104,7 @@ class RouteServer:
     def list_service(self):
         self.request_count += 1
         table = self.routing_table.as_dict()
-        logger.info("[KV] list_service %s", table)
+        # logger.info("[KV] list_service %s", table)
         return table
 
     def get_request_count(self):

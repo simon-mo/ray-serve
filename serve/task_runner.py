@@ -18,9 +18,7 @@ def wrap_to_ray_error(callable_obj, *args):
         traceback_str = traceback.format_exc()
         return ray.exceptions.RayTaskError(str(callable_obj), traceback_str)
 
-
-@ray.remote
-class TaskRunnerActor(TaskRunner):
+class RayServeMixin():
     self_handle = None
     router_handle = None
     setup_completed = False
@@ -45,3 +43,7 @@ class TaskRunnerActor(TaskRunner):
 
         # tail recursively schedule itself
         self.self_handle.main_loop.remote()
+
+@ray.remote
+class TaskRunnerActor(TaskRunner, RayServeMixin):
+    pass
